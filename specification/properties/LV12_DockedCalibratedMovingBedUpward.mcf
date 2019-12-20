@@ -1,0 +1,6 @@
+% LV12
+% The case in which the MPSP gets docked, reaches the standard height and then moves down
+([true* . dock . !undock* . standardHeightReached . !undock* . motorDown . !(standardHeightReached || undock)* . (tap(up) || press(up))] mu X . [!motorUp]X)
+&& 
+% The case in which the MPSP reaches the standard height, gets docked and after that moves down
+([true* . standardHeightReached . !resetStandardHeight* . dock . !undock* . motorDown . !(standardHeightReached || undock)* . (tap(up) || press(up))] mu X . [!motorUp]X)

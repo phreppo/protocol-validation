@@ -1,0 +1,8 @@
+% SF02
+[true* . applyVerticalBrake . !releaseVerticalBrake* . (motorUp || motorDown)]false 
+&& 
+[true* . applyHorizontalBrake . !releaseHorizontalBrake* . (motorLeft || motorRight)]false
+&&
+[true* . (motorLeft || motorRight) . !horizontalMotorOff* . applyHorizontalBrake]false
+&&
+[true* . (motorUp || motorDown) . !verticalMotorOff* . applyVerticalBrake]false

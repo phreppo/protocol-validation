@@ -1,0 +1,38 @@
+\section{Requirements}
+
+Here we state the global requirements that we have identified either explicitly
+or implicitly in the text.
+We divide the requirements in two categories: \emph{Safety} and \emph{Liveness}
+and for the sake of clarity we assign a code to each
+requirement.
+\subsection{Safety properties}
+\begin{itemize}
+    \item \textbf{SF01}: If the emergency mode is triggered, no motorized movement can occur.
+    \item \textbf{SF02}: If one motor is on, the corresponding brake must not be applied.
+    \item \textbf{SF03}: If the MPSP is not in the rightmost position, the undock message should never be sent to the scanner.
+    \item \textbf{SF04}: If the MPSP is at the standard height and docked and the button up is pressed, then that button must be released before the inward movement is commenced.
+    \item \textbf{SF05}: If the MPSP is docked and calibrated, the bed cannot be moved above the standard height.
+    \item \textbf{SF06}: If the MPSP is docked and not at the rightmost position, no motorized vertical movement can occur.
+    \item \textbf{SF07}: If the MPSP is uncalibrated or undocked and either the up or down button is pressed, the bed can move only up and down.
+    \item \textbf{SF08}: If the MPSP is undocked, the bed must be in the rightmost position.
+    \item \textbf{SF09}: If the MPSP is undocked, the horizontal brake must be applied.
+    \item \textbf{SF10}: The MPSP can not move under the lowermost position, above the uppermost position and to the left of the leftmost position.
+    \item \textbf{SF11}: If the vertical motor is off, the vertical break must be applied.
+\end{itemize}
+
+\subsection{Liveness properties}
+\begin{itemize}
+    \item \textbf{LV01}: The system never ends up in a state where it cannot perform any action (\emph{Deadlock freeness}).
+    \item \textbf{LV02}: If the emergency mode is triggered, the horizontal brake, if applied, must be released, so that the medical staff can drag the patient outside the scanner.
+    \item \textbf{LV03}: If the emergency mode is activated, the resume button must trigger the normal mode.
+    \item \textbf{LV04}: If the MPSP is docked, the stop button must trigger emergency mode.
+    \item \textbf{LV05}: If the MPSP is docked and at the rightmost position, the undock button must send one undock message to the scanner.
+    \item \textbf{LV06}: If the MPSP is undocked, the reset button must forget the standard height.
+    \item \textbf{LV07}: If the MPSP is docked and at the rightmost position, the reset button sets the standard height.
+    \item \textbf{LV08}: If the MPSP is docked and at the standard height and at the rightmost position and the button up is pressed, the bed moves into the scanner.
+    \item \textbf{LV09}: If the MPSP is docked and not at the rightmost position and the button down is pressed, the bed moves to the left.
+    \item \textbf{LV10}: If the MPSP is above the lowermost position and outside of the scanner and the button down is pressed, the bed moves downwards.
+    \item \textbf{LV11}: If the MPSP is undocked and below the uppermost position and the button up is pressed, the bed moves upwards.
+    \item \textbf{LV12}: If the MPSP is docked, calibrated and below the standard height and the button up is pressed, the bed moves upwards.
+    \item \textbf{LV13}: If the MPSP is docked, uncalibrated and below the uppermost position and the button up is pressed, the bed moves upwards.
+\end{itemize}

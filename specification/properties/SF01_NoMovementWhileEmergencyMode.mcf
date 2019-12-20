@@ -1,0 +1,2 @@
+% SF01
+[true* . emergencyMode . !normalMode* . (motorUp || motorDown || motorLeft || motorRight)]false

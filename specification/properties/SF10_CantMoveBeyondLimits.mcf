@@ -1,0 +1,6 @@
+%  SF10
+[true* . uppermostReached . !motorDown* . motorUp]false
+&&
+[true* . lowermostReached . !motorUp* . motorDown]false
+&&
+[true* . leftmostReached . !(motorRight || emergencyMode)* . motorLeft]false

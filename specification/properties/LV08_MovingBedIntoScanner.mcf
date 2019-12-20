@@ -1,0 +1,6 @@
+% LV08
+% standard height reached after docking
+([true* . dock . !undock* . standardHeightReached . !(tap(up) || press(up) || motorDown || undock)* . (tap(up) || press(up))] mu X . [!motorLeft]X)
+&&
+% standard height reached before docking
+([true* . standardHeightReached . !(motorDown || motorUp || resetStandardHeight)* . dock . !(tap(up) || press(up) || motorDown || undock)* . (tap(up) || press(up))] mu X . [!motorLeft]X) 

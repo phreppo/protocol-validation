@@ -1,0 +1,2 @@
+% LV03
+([true* . emergencyMode . !normalMode* . (press(resume) || tap(resume))] mu X . [!normalMode]X)

@@ -1,0 +1,24 @@
+% LV13
+% The case in which the MPSP has never been calibrated and has never reached the standard height
+([!(setStandardHeight || uppermostReached)* . dock . !(setStandardHeight || undock || uppermostReached)* . (tap(up) || press(up)) ] mu X . [!motorUp]X)
+&&
+% The case in which the MPSP has never been calibrated, reaches then uppermost position, gets docked and then moves down
+([!(setStandardHeight)* . uppermostReached . !(motorDown || setStandardHeight)* . dock . !(undock || setStandardHeight)* . motorDown . !(undock || setStandardHeight || uppermostReached)* . (tap(up) || press(up))] mu X . [!motorUp]X)
+&&
+% The case in which the MPSP has never been calibrated, gets docked, reaches the uppermost position and then moves down
+([!(setStandardHeight)* . dock . !(undock || setStandardHeight)* . uppermostReached . !(undock || setStandardHeight)* . motorDown . !(undock || setStandardHeight || uppermostReached)* . (tap(up) || press(up))] mu X . [!motorUp]X)
+&&
+% The case in which the MPSP reaches the uppermost position, moves down, gets uncalibrated and then gets docked
+([true* . uppermostReached . true* . motorDown . !uppermostReached* . resetStandardHeight . !(setStandardHeight || uppermostReached)* . dock . !(undock || setStandardHeight || uppermostReached)* . (tap(up) || press(up))] mu X . [!motorUp]X)
+&&
+% The case in which the MPSP reaches the uppermost, gets uncalibrated, moves down and then gets docked
+([true* . uppermostReached . true* . resetStandardHeight . !(setStandardHeight)* . motorDown . !(setStandardHeight || uppermostReached)* . dock . !(undock || setStandardHeight || uppermostReached)* . (tap(up) || press(up))] mu X . [!motorUp]X) % ok
+&&
+% The case in which the MPSP gets uncalibrated, reaches the uppermost position, moves down and then gets docked
+([true* . resetStandardHeight . !(setStandardHeight)* . uppermostReached . !setStandardHeight* . motorDown . !(setStandardHeight || uppermostReached)* . dock . !(undock || setStandardHeight || uppermostReached)* . (tap(up) || press(up))] mu X . [!motorUp]X)
+&&
+% The case in which the MPSP gets uncalibrated, reaches the uppermost position, gets docked and then moves down
+([true* . resetStandardHeight . !(setStandardHeight)* . uppermostReached . !setStandardHeight* . dock . !(undock || setStandardHeight)* . motorDown . !(setStandardHeight || uppermostReached || emergencyMode)* . (tap(up) || press(up))] mu X . [!motorUp]X)
+&&
+% The case in which the MPSP gets uncalibrated, gets docked, reaches the uppermost and then moves down
+([true* . resetStandardHeight . !(setStandardHeight)* . dock . !(undock || setStandardHeight)* . uppermostReached . !(undock || setStandardHeight)* . motorDown . !(setStandardHeight || uppermostReached || emergencyMode)* . (tap(up) || press(up))] mu X . [!motorUp]X)

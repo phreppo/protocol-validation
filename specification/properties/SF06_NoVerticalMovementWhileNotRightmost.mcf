@@ -1,0 +1,2 @@
+% SF06
+[true* . dock . !undock* . motorLeft . !rightmostReached* . (motorUp || motorDown) ]false

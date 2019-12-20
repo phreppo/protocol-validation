@@ -1,0 +1,228 @@
+\section{Requirements-interactions mapping}
+
+Here we translate the global requirements in terms of action sequences. Some cases can be quite complicated, while their corresponding \emph{mu-calculus} formulas are compact and quite clear.
+Sometimes to make the translations more readable we add parenthesis to clarify the meaning.
+Some cases have multiple conditions that should hold simultaneously.
+
+\subsection{Safety properties}
+\begin{itemize}
+    \item \textbf{SF01}: If \inEmergencyMode\ occurred, then no \motorizedMovement\ can occur.
+
+    \item \textbf{SF02}:
+    \begin{itemize}
+        \item If \applyVerticalBrake\ not followed by \releaseVerticalBrake\ occurred, then no \motorUp\ or \motorDown\ can occur.
+
+        \item If \applyHorizontalBrake\ not followed by \releaseHorizontalBrake\ occurred, then no \motorLeft\ or \motorRight\ can occur.
+
+        \item If \motorLeft\ or \motorRight\ not followed by \horizontalMotorOff\ occurred, then no \applyHorizontalBrake\ can occur.
+
+        \item If \motorUp\ or \motorDown\ not followed by \verticalMotorOff\ occurred, then no \applyVerticalBrake\ can occur.
+    \end{itemize}
+
+    \item \textbf{SF03}: If \notRightmost\ occurred, then \undock\  can not occur.
+
+    \item \textbf{SF04}:
+    \begin{itemize}
+        \item \textit{This is the case in which the MPSP gets docked and after that reaches the standard height.}\\
+        If \dock\ not followed by \undock\ occurred, subsequently followed by \standardHeightReached\ not followed by (\undock, \motorDown\ or \motorUp), subsequently followed by \pressUp\, but not by \releaseUp, then no \motorLeft\ can occur.
+
+        \item \textit{This is the case in which the MPSP first reaches the standard height and then gets docked and not moved or re-calibrated.}\\
+        If \standardHeightReached\ not followed by (\resetStandardHeight, \motorUp\ or \motorDown) occurred and is subsequently followed by \dock\ not followed by (\undock, \motorUp\ or \motorDown), and  is then followed by \pressUp\ not followed by \releaseUp, then no \motorLeft\ can occur.
+    \end{itemize}
+    \item \textbf{SF05}:
+    \begin{itemize}
+        \item \textit{In this case first the MPSP gets docked and then the standard height is reached.}\\
+        If \dock\ not followed by \undock\ occurred, followed by \standardHeightReached\ not followed by (\motorDown\ or \undock), then no \motorUp\ can occur.
+
+        \item \textit{This is the complementary case: first the MPSP reaches the standard height and then it gets docked and not moved or re-calibrated.}\\
+        If \standardHeightReached\ not followed by (\resetStandardHeight, \motorUp\ or \motorDown) occurred, followed by \dock\ not followed by (\motorDown\ or \undock), then no \motorUp\ can occur.
+    \end{itemize}
+
+    \item \textbf{SF06}: If \isDocked\ occurred and then \notRightmost\ occurred, then no \motorUp\ or \motorDown\ can occur.
+
+    \item \textbf{SF07}:
+    \begin{itemize}
+        \item \textit{This represents the case in which the MPSP has never been calibrated.}\\
+        If no \setStandardHeight\ occurred and then \tapDown,\tapUp\, \pressDown\ or \pressUp\ not followed by \setStandardHeight\ occurred, then no \motorLeft\ or \motorRight\ can occur.
+
+        \item \textit{This is the case in which the MPSP has been calibrated and subsequently uncalibrated.}\\
+        If \resetStandardHeight\ not followed by \setStandardHeight\ occurred, subsequently followed by \tapDown\,\tapUp\, \pressDown\ or \pressUp\ not followed by \setStandardHeight\, then no \motorLeft\ or \motorRight\ can occur.
+
+        \item \textit{This represents the case in which the MPSP has never been docked.}\\
+        If no \dock\ action occurred and \tapDown\, \tapUp\, \pressDown\ or \pressUp\ occurred not followed by \dock, then no \motorLeft\ or \motorRight\ can occur.
+
+        \item \textit{This is the case in which the MPSP has been docked and subsequently undocked.}\\
+        If \undock\ not followed by \dock\ occurred, subsequently followed by \tapDown,\tapUp\, \pressDown\ or \pressUp\ not followed by \dock, then no \motorLeft\ or \motorRight\ can occur.
+\end{itemize}
+
+    \item \textbf{SF08}:
+    \begin{itemize}
+    \item \textit{This represents the case in which the MPSP has never been docked (and so it is at the rightmost position).}\\
+    If no \dock\ action occurred, then no \motorLeft\ can occur.
+
+    \item \textit{This represents the case in which the MPSP gets docked: if one left movement occurs, then the bed can not get undocked until one \rightmostReached\ occurs. This implies that if it gets subsequently undocked it will be at the rightmost position.}\\
+    If \dock\ not followed by \undock\ occurred,  and it is subsequently followed by \motorLeft\ not followed by \rightmostReached\ then no \undock\ can occur.
+
+    \item \textit{This, together with the previous condition of this requirement, implies that while the MPSP is undocked it must always be at the rightmost position, as when it is undocked it begins at the rightmost, and while undocked, it can not move.}\\
+    If \undock\ not followed by \dock\ action occurred, then no \motorLeft\ can occur.
+    \end{itemize}
+
+    \item \textbf{SF09}:
+    \begin{itemize}
+        \item \textit{This represents the case in which the MPSP has never been docked (and then the horizontal brake is applied).}\\
+        If no \dock\ action occurred, then no \releaseHorizontalBrake\ can occur.
+
+        \item \textit{This represents the case in which the MPSP gets docked: if one release of the horizontal brake occurs, then the bed can't get undocked until one "applyHorizontalBrake" occurs. This implies that if it gets subsequently undocked the horizontal brake will be applied.}\\
+        If \dock\ not followed by \undock\ occurred,  and it is subsequently followed by \releaseHorizontalBrake\ not followed by \applyHorizontalBrake, then no \undock\ can occur.
+
+        \item \textit{This, together with the previous condition of this requirement, implies that while the MPSP is undocked the horizontal brake must always be applied, as when it gets undocked it is applied, and while undocked, it can't be released.}\\
+        If \undock\ not followed by \dock\ action occurred, then no \releaseHorizontalBrake\ can occur.
+    \end{itemize}
+
+    \item \textbf{SF10}:
+    \begin{itemize}
+
+        \item If \uppermostReached\ not followed by \motorDown\ occurred, then no \motorUp\ can occur.
+
+        \item If \lowermostReached\ not followed by \motorUp\ occurred, then no \motorDown\ can occur.
+
+        \item If \leftmostReached\ not followed by \motorRight\ occurred, then no \motorLeft\ can occur.
+
+
+    \end{itemize}
+    \item \textbf{SF10}:
+    \begin{itemize}
+
+        \item If \uppermostReached\ not followed by \motorDown\ occurred, then no \motorUp\ can occur.
+
+        \item If \lowermostReached\ not followed by \motorUp\ occurred, then no \motorDown\ can occur.
+
+        \item If \leftmostReached\ not followed by \motorRight\ occurred, then no \motorLeft\ can occur.
+    \end{itemize}
+    \item \textbf{SF11}:
+    \begin{itemize}
+        \item If \verticalMotorOff\ occurred, then the next action must be \applyVerticalBrake.
+
+        \item If \releaseVerticalBrake\ occurred, then the next action must be \motorUp\ or \motorDown.
+    \end{itemize}
+    \textbf{Important note}: normally this requirement would be (informally) implemented as  "every trace that contains \verticalMotorOff, must contain \applyVerticalBrake\ before",
+    but we noticed that it is not possible to satisfy this and requirement \textbf{SF02} at the same time. This is due to the fact that either (the motor is turned off and after that the brake is applied [\textbf{SF02}]) or (the brake is applied and then the motor is turned off [\textbf{SF11}]) can hold. In order to be able to satisfy both requirements we decided to implement \textbf{SF11} as specified.
+
+\end{itemize}
+
+\subsection{Liveness properties}
+\begin{itemize}
+    \item \textbf{LV01}: For any sequence of actions, one subsequent action can always be performed \emph{(Deadlock freeness)}.
+
+    \item \textbf{LV02}:
+    Each \leftmostReached\ that is not followed by \motorRight\ or \emergencyMode\ actions, and that is then followed by \emergencyMode must eventually be followed by \releaseHorizontalBrake.
+
+    \item \textbf{LV03}: Each \emergencyMode\ that is not followed by \normalMode, but is subsequently followed by \pressResume\ or \tapResume\ must be eventually followed by \normalMode.
+
+    \item \textbf{LV04}: Each \dock\ that is not followed by \undock, but that is followed by \tapStop\ or \pressStop\, must be eventually be followed by \emergencyMode.
+
+    \item \textbf{LV05}:
+    \begin{itemize}
+        \item \textit{This is the case in which no left movement occurs.}\\
+        Each \dock\ that is not followed by \undock\ or \motorLeft, but that is followed by \tapUndock\ or \pressUndock, must be eventually followed by \undock.
+
+        \item \textit{This is the case in which left movement occurs.}\\
+        Each \dock\ that is not followed by \undock\ or \motorLeft, that is followed by \rightmostReached\ not followed by \undock\ or \motorLeft, that is subsequently followed by \tapUndock\ or \pressUndock, must eventually be followed by \undock.
+    \end{itemize}
+    \item \textbf{LV06}: Each \setStandardHeight\ which is not followed by ( \resetStandardHeight\ or \emergencyMode) and that is subsequently followed by \undock\ not followed by \dock\ or \resetStandardHeight, and that is then followed by \tapReset\ or \pressReset\, must be eventually followed by \resetStandardHeight.
+
+    \item \textbf{LV07}:
+    \begin{itemize}
+    \item \textit{This is the case in which no left movement occurs.}\\
+    Each \dock\ that is not followed by \undock\ or \motorLeft, but that is then followed by \tapReset\ or \pressReset\ must be eventually followed by \setStandardHeight.
+
+    \item \textit{This is the case in which left movement occurs.}\\
+    Each \dock\ that is not followed by \undock, but that is followed by \rightmostReached\ not followed by \undock\ or \motorLeft, that is subsequently followed by \tapReset\ or \pressReset, must be eventually followed by \setStandardHeight.
+    \end{itemize}
+
+    \item \textbf{LV08}:
+    \begin{itemize}
+    \item \textit{This is the case in which the standard height has been reached before docking the MPSP.}\\
+    Each \dock\ that is not followed by \undock, but that is followed by \standardHeightReached\ not followed by (\tapUp, \pressUp, \motorDown\ or \undock), and that is subsequently followed by \tapUp\ or \pressUp\, must be eventually followed by \motorLeft.
+
+    \item \textit{This is the case in which the standard height is reached after docking the MPSP.}\\
+    Each \setStandardHeight\ that is not followed by (\motorDown, \motorUp\ or \resetStandardHeight), but that is followed by \dock\ not followed by (\tapUp, \pressUp, \motorDown\ or \undock), and that is subsequently followed by \tapUp\ or \pressUp, must be eventually followed by \motorLeft.
+    \end{itemize}
+    \item \textbf{LV09}: \textit{This is the case in which the MPSP is not in the lowermost position.}\\
+    Each \motorLeft\ that is not followed by \rightmostReached\ that is subsequently followed by \tapDown\ or \pressDown\ must be eventually followed by \motorRight.
+
+    \item \textbf{LV10}: Each \motorUp\ not followed by (\lowermostReached, \motorLeft\ or \emergencyMode), that is followed by \tapDown\ or \pressDown, must be eventually followed by \motorDown.
+
+    \item \textbf{LV11}: From this point on, the properties we describe are quite complicated and many sub-cases are needed.
+    It is not easy to clearly express some of them in natural language, and for this reason we try to explain them adding a short description of the case that we are considering.
+
+    \begin{itemize}
+        \item \textit{The uppermost has never been reached and the MPSP has never been docked.}\\
+        If no \dock\ or \uppermostReached\ occurred and \pressUp\ or \tapUp\ occurred, then \motorUp\ must eventually occur.
+
+        \item \textit{The MPSP has never been docked but the uppermost has been reached.}\\
+        If \uppermostReached\ not preceded or followed by \dock\ action occurred, followed by \motorDown (to be sure that the MPSP is at least one step under the uppermost) but not by \dock\ or \uppermostReached, if \pressUp\ or \pressDown\ occurred, then \motorUp\ must eventually occur.
+
+        \item \textit{The MPSP has been docked but has never reached the uppermost position.}\\
+        If \undock\ not preceded by \uppermostReached\ or \emergencyMode\, and also not followed by \dock\ or \uppermostReached\ occurred, if \pressUp\ or \pressDown\ occurred, then \motorUp\ must eventually occur.
+        In is the case emergency mode cannot be triggered: this is due to the fact that in emergency mode the pressing of button up is ignored.
+
+        \item \textit{The MPSP has been docked and has reached the uppermost position after that.}\\
+        If \undock\ not followed by \dock\ action occurred, followed by  \uppermostReached\ but not by \dock\ action, and subsequently followed by \motorDown, but not by a subsequent \dock\ or \uppermostReached\, if \pressUp\ or \pressDown\ occurred, then \motorUp\ must eventually occur.
+
+        \item \textit{The uppermost has been reached before getting docked and the bed moves down after getting undocked.}\\
+        If \uppermostReached\ not followed by \motorDown\ occurred, followed by \undock\ but not by by \dock, if it is then followed by \motorDown\ not followed by \dock\ or \uppermostReached\, if \pressUp\ or \pressDown\ occurred, then \motorUp\ must eventually occur.
+
+        \item \textit{The uppermost has been reached before getting docked and the bed move down while docked.}\\
+        If \uppermostReached\ occurred in a trace before \motorDown, and then no \uppermostReached\ or \emergencyMode\ occurred, followed then by \undock\  not followed by \dock\ or \uppermostReached, if \pressUp\ or \pressDown\ occurred, then \motorUp\ must eventually occur.
+    \end{itemize}
+
+    \item \textbf{LV12}:
+    \begin{itemize}
+        \item \textit{The MPSP gets docked, reaches the standard height and then moves down.\\}
+        If \dock\ not followed by \undock\ occurred, followed then by \standardHeightReached\ not followed by \undock, and subsequently followed by a \motorDown\  but not by \standardHeightReached\ or \undock, if \pressUp\ or \pressDown\ occurred, then \motorUp\ must eventually occur.
+
+        \item \textit{The MPSP reaches the standard height, gets docked and after that moves down.\\}
+        If \standardHeightReached\ not followed by \resetStandardHeight\ occurred, subsequently followed by \dock\ but not by \undock, if after that a \motorDown\ not followed by \standardHeightReached\ or \undock\ occurred, if \pressUp\ or \pressDown\ occurred, then \motorUp\ must eventually occur.
+    \end{itemize}
+
+    \item \textbf{LV13}:
+    This formula is by far the most complicated one, due to the fact the we have to keep track of each possible way to get uncalibrated, docked and under the uppermost position in all possible ways.
+
+    \begin{itemize}
+        \item \textit{The MPSP has never been calibrated and has never reached the standard height.}\\
+        If no \setStandardHeight\ or \uppermostReached\ occurred before \dock\ and no \setStandardHeight, \undock\ or \uppermostReached\ after it, if \pressUp\ or \pressDown\ occurred, then \motorUp\ must eventually occur.
+
+        \item \textit{The MPSP has never been calibrated, reaches then uppermost position, gets docked and then moves down.}\\
+        If no \setStandardHeight\ occurred before \uppermostReached, then no \motorDown\ or \setStandardHeight\ occurred before \dock, and then no \undock\ or \setStandardHeight\ occurred before \motorDown, and then no \undock\ or \setStandardHeight\ or \uppermostReached\ occurred , if \pressUp\ or \pressDown\ occurred, then \motorUp\ must eventually occur.
+
+        \item \textit{The MPSP has never been calibrated, gets docked, reaches the uppermost position and then moves down.}\\
+        If no \setStandardHeight\ occurred before \dock, and it is not followed by \undock\ or \setStandardHeight, if then \uppermostReached\ occurred not followed by \undock\ or \setStandardHeight, if after that \motorDown\ occurred not followed by  \undock, \setStandardHeight\ or \uppermostReached\  , if \pressUp\ or \pressDown\ occurred, then \motorUp\ must eventually occur.
+
+        \item \textit{The MPSP reaches the uppermost position, moves down, gets uncalibrated and then gets docked.}\\
+        If \uppermostReached\ appeared in a trace before \motorDown\ not followed by \uppermostReached, if then \resetStandardHeight occurred not followed by \setStandardHeight\ or \uppermostReached, if then \dock\ occurred not followed by \undock, \setStandardHeight\ or \uppermostReached\ action , if \pressUp\ or \pressDown\ occurred, then \motorUp\ must eventually occur.
+
+        \item \textit{The MPSP reaches the uppermost position, gets uncalibrated, moves down and then gets docked.}\\
+        If \uppermostReached\ appeared in a trace before \resetStandardHeight\ not followed by \setStandardHeight, if then \motorDown\ occurred not followed by \setStandardHeight\ or \uppermostReached, and it is subsequently followed by \dock\ but not by \undock, \setStandardHeight\ or \uppermostReached\  , if \pressUp\ or \pressDown\ occurred, then \motorUp\ must eventually occur.
+
+        \item \textit{The MPSP gets uncalibrated, reaches the uppermost position, moves down and then gets docked.}\\
+        If \resetStandardHeight\ occurred not followed by \setStandardHeight, if it is then followed by \uppermostReached\ but not by \setStandardHeight, if then \motorDown\ occurred not followed by \setStandardHeight\ or \uppermostReached, if then \dock\ occurred not followed by \undock, \setStandardHeight\ or \uppermostReached, if \pressUp\ or \pressDown\ occurred, then \motorUp\ must eventually occur.
+
+        \item \textit{The MPSP gets uncalibrated, reaches the uppermost position, gets docked and then moves down.}\\
+        If \resetStandardHeight\ not followed by \setStandardHeight\ occurred, if it is followed by \uppermostReached\ but not by \setStandardHeight, if it is subsequently followed by \dock\ but not by \undock\ or \setStandardHeight, if it is then followed by \motorDown\ but not by \setStandardHeight, \uppermostReached\ or \emergencyMode, if \pressUp\ or \pressDown\ occurred, then \motorUp\ must eventually occur.
+
+        \item \textit{The MPSP gets uncalibrated, gets docked, reaches the uppermost and then moves down.}\\
+        If \resetStandardHeight\ not followed by \setStandardHeight\ occurred, if it is followed by \dock\ but not by \undock\ or \setStandardHeight,if it is followed by \uppermostReached\  but not by \undock\ or \setStandardHeight, if it is followed by \motorDown\ but not by \setStandardHeight, \uppermostReached\ or \emergencyMode, if \pressUp\ or \pressDown\ occurred, then \motorUp\ must eventually occur.
+
+    \end{itemize}
+
+\end{itemize}
+
+Note that in the translation to \emph{mu-calculus} formulas, living properties that include the word "eventually" are translated in the (general) form:
+
+$$
+[...] \mu X . (<T>T \wedge [\neg a]X)
+$$
+
+To indicate that in a finite number of steps action $a$ will happen.
+The first atom, $<T>T$, is omitted in the specification of the property because the requirement of \emph{Deadlock freeness} holds.

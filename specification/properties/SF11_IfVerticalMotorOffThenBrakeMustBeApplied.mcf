@@ -1,0 +1,4 @@
+% SF11
+[true* . verticalMotorOff . !applyVerticalBrake]false
+&&
+[true* . releaseVerticalBrake . !(motorUp || motorDown)]false

@@ -1,0 +1,9 @@
+%  SF09
+% Initial state: undocked and horizontal brake applied
+[!dock* . releaseHorizontalBrake]false
+&&
+% Can't undock while the horizontal brake is not applied
+[true* . dock . !undock* . releaseHorizontalBrake . !applyHorizontalBrake* . undock] false
+&&
+% Can't release the horziontal brake if the MPSP is undocked
+[true* . undock . !dock* . releaseHorizontalBrake]false

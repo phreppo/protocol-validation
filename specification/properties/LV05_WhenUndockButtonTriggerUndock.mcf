@@ -1,0 +1,4 @@
+% SF05
+([true* . dock . !(undock || motorLeft)* . (tap(undock) || press(undock))] mu X . [!undock]X) % the MPSP has never gone to the left
+&&
+([true* . dock . !undock* . rightmostReached . !(undock || motorLeft)* . (tap(undock) || press(undock))] mu X . [!undock]X) % the MPSP has moved to the left but then has came back to the rightmost position

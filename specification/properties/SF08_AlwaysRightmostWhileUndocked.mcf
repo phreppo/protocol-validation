@@ -1,0 +1,9 @@
+% SF08
+% Initial state: has never been docked and then it is at the rightmost position
+[!dock* . motorLeft]false
+&&
+% Can't undock while not at the rightmost
+[true* . dock . !undock* . motorLeft . !rightmostReached* . undock] false
+&&
+% Can't move left while undocked
+[true* . undock . !dock* . motorLeft]false

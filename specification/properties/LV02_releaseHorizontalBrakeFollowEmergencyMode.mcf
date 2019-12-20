@@ -1,0 +1,2 @@
+% LV02
+([true* . leftmostReached . !(motorRight || emergencyMode)* . emergencyMode] mu X . [!releaseHorizontalBrake]X)

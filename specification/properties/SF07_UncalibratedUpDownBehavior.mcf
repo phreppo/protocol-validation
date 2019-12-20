@@ -1,0 +1,12 @@
+% SF07
+% Initial state: uncalibrated
+[!setStandardHeight* . (tap(down) || press(down) || tap(up) || press(up)) . !setStandardHeight* . (motorLeft || motorRight)]false
+&&
+% After first calibration and subsequent calibration
+[true* . resetStandardHeight . !setStandardHeight* . (tap(down) || press(down) || tap(up) || press(up)) . !setStandardHeight* . (motorLeft || motorRight)]false
+&&
+% Initial state: undocked
+[!dock* . (tap(down) || press(down) || tap(up) || press(up)) . !dock* . (motorLeft || motorRight)]false
+&&
+% After first undocking
+[true* . undock . !dock* . (tap(down) || press(down) || tap(up) || press(up)) . !dock* . (motorLeft || motorRight)]false

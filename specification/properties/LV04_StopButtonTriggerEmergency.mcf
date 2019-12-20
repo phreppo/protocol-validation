@@ -1,0 +1,2 @@
+% LV04
+[true* . dock . !undock* . (tap(stop) || press(stop))] mu X . [!emergencyMode]X

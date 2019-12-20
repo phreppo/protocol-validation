@@ -1,0 +1,926 @@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% console
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+sort ButtonLabel = struct up | down | stop | resume | undock | reset;
+act s_tap, s_press, s_release: ButtonLabel;
+
+proc
+	Console =
+	  (	Button(up)
+	  +	Button(down)
+	  +	Button(stop)
+	  +	Button(resume)
+	  +	Button(undock)
+	  +	Button(reset)
+	  ) . Console;
+
+	Button(l : ButtonLabel) = s_tap(l) + s_press(l).s_release(l);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Sensors
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+act
+	s_uppermostReached, s_lowermostReached;
+	s_standardHeightReached, s_standardHeightPassed;
+	s_rightmostReached, s_leftmostReached;
+	s_dock;
+
+proc
+	HorizontalPosition =
+		(s_uppermostReached + s_lowermostReached + s_standardHeightReached + s_standardHeightPassed)
+		. HorizontalPosition;
+	VerticalPosition =
+		(s_rightmostReached + s_leftmostReached)
+		. VerticalPosition;
+	DockSensor =
+		s_dock . DockSensor;
+
+	Sensors = allow({
+			s_uppermostReached, s_lowermostReached,
+			s_standardHeightReached, s_standardHeightPassed,
+			s_rightmostReached, s_leftmostReached,
+			s_dock
+		}, HorizontalPosition || VerticalPosition || DockSensor);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Motors & Brakes
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+act
+	r_motorUp, r_motorDown, r_verticalMotorOff;
+	r_motorLeft, r_motorRight, r_horizontalMotorOff;
+proc
+	VerticalMotor(s : VerticalMotorState) =
+		(s == verticalMotorOff) -> (
+		    r_motorUp.VerticalMotor(movingUp)
+		  + r_motorDown.VerticalMotor(movingDown))
+		 <> (s == movingUp) -> (
+		    r_verticalMotorOff.VerticalMotor(verticalMotorOff)
+		  + r_motorDown.VerticalMotor(movingDown))
+		 <> (s == movingDown) -> (
+		    r_verticalMotorOff.VerticalMotor(verticalMotorOff)
+		  + r_motorUp.VerticalMotor(movingUp));
+	HorizontalMotor(s : HorizontalMotorState) =
+		(s == horizontalMotorOff) -> (
+		    r_motorLeft.HorizontalMotor(movingLeft)
+		  + r_motorRight.HorizontalMotor(movingRight))
+		 <> (s == movingLeft) -> (
+		    r_horizontalMotorOff.HorizontalMotor(horizontalMotorOff)
+		  + r_motorRight.HorizontalMotor(movingRight))
+		 <> (s == movingRight) -> (
+		    r_horizontalMotorOff.HorizontalMotor(horizontalMotorOff)
+		  + r_motorLeft.HorizontalMotor(movingLeft));
+
+act
+	r_applyVerticalBrake, r_releaseVerticalBrake;
+	r_applyHorizontalBrake, r_releaseHorizontalBrake;
+proc
+	VerticalBrake(s : BrakeState) =
+		(s == off) -> r_applyVerticalBrake.VerticalBrake(on)
+	 <> (s == on)  -> r_releaseVerticalBrake.VerticalBrake(off);
+	HorizontalBrake(s : BrakeState) =
+		(s == off) -> r_applyHorizontalBrake.HorizontalBrake(on)
+	 <> (s == on)  -> r_releaseHorizontalBrake.HorizontalBrake(off);
+
+act
+	r_undock;
+proc
+	UndockController = r_undock . UndockController;
+
+proc
+	Output(initialState : ProcessorState) =
+		   allow({
+			r_motorUp, r_motorDown, r_verticalMotorOff,
+			r_motorLeft, r_motorRight, r_horizontalMotorOff,
+			r_applyVerticalBrake, r_releaseVerticalBrake,
+			r_applyHorizontalBrake, r_releaseHorizontalBrake,
+			r_undock
+		},
+			 ( VerticalMotor  (motor1(initialState))
+			|| VerticalBrake  (brake1(initialState))
+			|| HorizontalMotor(motor2(initialState))
+			|| HorizontalBrake(brake2(initialState))
+			|| UndockController
+		));
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Processor
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+sort Mode = struct normalMode | emergencyMode;
+sort Calibrated = struct
+	calibratedInBetween | calibratedUppermost |
+	calibratedLowermost | uncalibrated;
+sort Docked = struct docked | undocked;
+sort VerticalMotorState = struct movingUp | movingDown | verticalMotorOff;
+sort HorizontalMotorState = struct movingLeft | movingRight | horizontalMotorOff;
+sort BrakeState = struct on | off;
+sort Position = struct
+	leftmost | horizontalBetween |
+	lowermost | uppermost | verticalBetween |
+	standardHeight | aboveStandardHeight | belowStandardHeight;
+map
+	isAtRightmost : Position -> Bool;
+var
+	p : Position;
+eqn
+	isAtRightmost(p) = !(p == leftmost || p == horizontalBetween);
+
+sort
+    ProcessorState = struct state(
+		mode : Mode,
+		calibrate : Calibrated,
+		docked : Docked,
+		motor1 : VerticalMotorState,
+		motor2 : HorizontalMotorState,
+		brake1 : BrakeState,
+		brake2 : BrakeState,
+		position : Position
+	);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% tools
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+map
+	% Predicates on states
+	isDockable                        	: ProcessorState -> Bool;
+	isUndocked                        	: ProcessorState -> Bool;
+	isDocked                          	: ProcessorState -> Bool;
+	isNormalMode                      	: ProcessorState -> Bool;
+	isEmergencyMode                   	: ProcessorState -> Bool;
+	isCalibrated                      	: ProcessorState -> Bool;
+	isCalibratedInBetween				: ProcessorState -> Bool;
+	isCalibratedLowermost				: ProcessorState -> Bool;
+	isCalibratedUppermost				: ProcessorState -> Bool;
+	isUncalibrated                    	: ProcessorState -> Bool;
+	isVerticalBetween                 	: ProcessorState -> Bool;
+	isHorizontalBetween                 : ProcessorState -> Bool;
+	isUnderUppermostAndAboveLowermost 	: ProcessorState -> Bool;
+	isUnderUppermost				  	: ProcessorState -> Bool;
+	isAboveLowermost                  	: ProcessorState -> Bool;
+	isBelowStandardHeight			  	: ProcessorState -> Bool;
+	isAboveStandardHeight			  	: ProcessorState -> Bool;
+	isRightmost  			          	: ProcessorState -> Bool;
+	isLeftmost  			          	: ProcessorState -> Bool;
+	isUppermost  			          	: ProcessorState -> Bool;
+	isLowermost				          	: ProcessorState -> Bool;
+	isStandardHeight				  	: ProcessorState -> Bool;
+	isMovingUp					  		: ProcessorState -> Bool;
+	isMovingDown						: ProcessorState -> Bool;
+	isMovingLeft					  	: ProcessorState -> Bool;
+	isMovingRight					  	: ProcessorState -> Bool;
+	isPressUpUndockedAllowed			: ProcessorState -> Bool;
+	isPressDownUndockedAllowed			: ProcessorState -> Bool;
+	% State transformers
+	state2Docked                      	: ProcessorState -> ProcessorState;
+	state2Undocked                    	: ProcessorState -> ProcessorState;
+	state2Calibrated                  	: ProcessorState -> ProcessorState;
+	state2Uncalibrated                  : ProcessorState -> ProcessorState;
+	state2Uppermost                   	: ProcessorState -> ProcessorState;
+	state2Lowermost                   	: ProcessorState -> ProcessorState;
+	state2Leftmost                   	: ProcessorState -> ProcessorState;
+	state2VerticalBetween             	: ProcessorState -> ProcessorState;
+	state2HorizontalBetween            	: ProcessorState -> ProcessorState;
+	state2AboveStandardHeight         	: ProcessorState -> ProcessorState;
+	state2UnderStandardHeight         	: ProcessorState -> ProcessorState;
+	state2StandardHeight              	: ProcessorState -> ProcessorState;
+	state2EmergencyMode               	: ProcessorState -> ProcessorState;
+	state2NormalMode               		: ProcessorState -> ProcessorState;
+	state2VerticalBrakeOff       		: ProcessorState -> ProcessorState;
+	state2HorizontalBrakeOff       		: ProcessorState -> ProcessorState;
+	state2VerticalBrakeOn       		: ProcessorState -> ProcessorState;
+	state2HorizontalBrakeOn       		: ProcessorState -> ProcessorState;
+	state2MotorUp       		        : ProcessorState -> ProcessorState;
+	state2MotorDown       		        : ProcessorState -> ProcessorState;
+	state2MotorLeft       		        : ProcessorState -> ProcessorState;
+	state2MotorRight       		        : ProcessorState -> ProcessorState;
+	state2HorizontalMotorOff	        : ProcessorState -> ProcessorState;
+	state2VerticalMotorOff		        : ProcessorState -> ProcessorState;
+
+var
+	s  : ProcessorState;
+	m  : Mode;
+	c  : Calibrated;
+	d  : Docked;
+	m1 : VerticalMotorState;
+	m2 : HorizontalMotorState;
+	b1 : BrakeState;
+	b2 : BrakeState;
+	p  : Position;
+eqn
+	isDockable(state(m, c, d, m1, m2, b1, b2, p)) =
+		m == normalMode && d == undocked && m1 == verticalMotorOff && m2 == horizontalMotorOff;
+	isUndocked(state(m, c, d, m1, m2, b1, b2, p)) =
+		d == undocked;
+	isDocked(state(m, c, d, m1, m2, b1, b2, p)) =
+		d == docked;
+	isNormalMode(state(m, c, d, m1, m2, b1, b2, p)) =
+		m == normalMode;
+	isEmergencyMode(state(m, c, d, m1, m2, b1, b2, p)) =
+		m == emergencyMode;
+	isCalibrated(state(m, c, d, m1, m2, b1, b2, p)) =
+		c == calibratedInBetween ||
+		c == calibratedLowermost ||
+		c == calibratedUppermost;
+	isCalibratedInBetween(state(m, c, d, m1, m2, b1, b2, p)) =
+		c == calibratedInBetween;
+	isCalibratedLowermost(state(m, c, d, m1, m2, b1, b2, p)) =
+		c == calibratedLowermost;
+	isCalibratedUppermost(state(m, c, d, m1, m2, b1, b2, p)) =
+		c == calibratedUppermost;
+	isUncalibrated(state(m, c, d, m1, m2, b1, b2, p)) =
+		c == uncalibrated;
+	isVerticalBetween(state(m, c, d, m1, m2, b1, b2, p)) =
+		p == verticalBetween;
+	isHorizontalBetween(state(m, c, d, m1, m2, b1, b2, p)) =
+		p == horizontalBetween;
+	isUnderUppermostAndAboveLowermost(s) =
+		isUnderUppermost(s) && isAboveLowermost(s);
+	isUnderUppermost(state(m, c, d, m1, m2, b1, b2, p)) =
+		p == lowermost ||
+		p == aboveStandardHeight ||
+		p == belowStandardHeight ||
+		p == standardHeight ||
+		p == verticalBetween;
+	isAboveLowermost(state(m, c, d, m1, m2, b1, b2, p)) =
+		p == uppermost ||
+		p == aboveStandardHeight ||
+		p == belowStandardHeight ||
+		p == standardHeight ||
+		p == verticalBetween;
+	isBelowStandardHeight(state(m, c, d, m1, m2, b1, b2, p)) =
+		(c != calibratedLowermost && p == lowermost) ||
+		p == belowStandardHeight;
+	isAboveStandardHeight(state(m, c, d, m1, m2, b1, b2, p)) =
+		(c != calibratedUppermost && p == uppermost) ||
+		p == aboveStandardHeight;
+	isRightmost(state(m, c, d, m1, m2, b1, b2, p)) =
+		p == uppermost ||
+		p == lowermost ||
+		p == verticalBetween ||
+		p == standardHeight ||
+		p == aboveStandardHeight ||
+		p == belowStandardHeight;
+	isLeftmost(state(m, c, d, m1, m2, b1, b2, p)) =
+		p == leftmost;
+	isUppermost(state(m, c, d, m1, m2, b1, b2, p)) =
+		p == uppermost;
+	isLowermost(state(m, c, d, m1, m2, b1, b2, p)) =
+		p == lowermost;
+	isStandardHeight(state(m, c, d, m1, m2, b1, b2, p)) =
+		p == standardHeight ||
+		(c == calibratedLowermost && p == lowermost) ||
+		(c == calibratedUppermost && p == uppermost);
+	isMovingUp(state(m, c, d, m1, m2, b1, b2, p)) =
+		m1 == movingUp;
+	isMovingDown(state(m, c, d, m1, m2, b1, b2, p)) =
+		m1 == movingDown;
+	isMovingLeft(state(m, c, d, m1, m2, b1, b2, p)) =
+		m2 == movingLeft;
+	isMovingRight(state(m, c, d, m1, m2, b1, b2, p)) =
+		m2 == movingRight;
+	isPressUpUndockedAllowed(state(m, c, d, m1, m2, b1, b2, p)) =
+		d == undocked && (
+			(c == uncalibrated && (p == verticalBetween || p == lowermost)) ||
+			(c == calibratedInBetween &&
+				(p == aboveStandardHeight || p == standardHeight || p == belowStandardHeight || p == lowermost)) ||
+			(c == calibratedUppermost && (p == belowStandardHeight || p == lowermost)) ||
+			(c == calibratedLowermost && (p == aboveStandardHeight || p == lowermost))
+		);
+
+	isPressDownUndockedAllowed(state(m, c, d, m1, m2, b1, b2, p)) =
+		d == undocked && (
+			(c == uncalibrated && (p == verticalBetween || p == uppermost)) ||
+			(c == calibratedInBetween &&
+				(p == aboveStandardHeight || p == standardHeight || p == belowStandardHeight || p == uppermost)) ||
+			(c == calibratedLowermost && (p == aboveStandardHeight || p == uppermost)) ||
+			(c == calibratedUppermost && (p == belowStandardHeight || p == uppermost))
+		);
+
+	state2Docked(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, docked, m1, m2, b1, b2, p);
+	state2Undocked(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, undocked, m1, m2, b1, b2, p);
+	(p == uppermost) -> state2Calibrated(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, calibratedUppermost, docked, m1, m2, b1, b2, uppermost);
+	(p == lowermost) -> state2Calibrated(state(m, c, d, m1, m2, b1, b2, p)) =
+	 	state(m, calibratedLowermost, docked, m1, m2, b1, b2, lowermost);
+	(p == verticalBetween || p == standardHeight || p == aboveStandardHeight || p == belowStandardHeight) ->
+		state2Calibrated(state(m, c, d, m1, m2, b1, b2, p)) =
+			state(m, calibratedInBetween, docked, m1, m2, b1, b2, standardHeight);
+	(p == leftmost || p == horizontalBetween) -> state2Calibrated(state(m, c, d, m1, m2, b1, b2, p)) =
+			state(m, c, docked, m1, m2, b1, b2, p);
+	(p != uppermost && p != lowermost) -> state2Uncalibrated(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, uncalibrated, undocked, m1, m2, b1, b2, verticalBetween);
+	(p == uppermost || p == lowermost) -> state2Uncalibrated(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, uncalibrated, undocked, m1, m2, b1, b2, p);
+	state2Uppermost(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, d, m1, m2, b1, b2, uppermost);
+	state2Lowermost(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, d, m1, m2, b1, b2, lowermost);
+	state2Leftmost(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, d, m1, m2, b1, b2, leftmost);
+	(c == uncalibrated) -> state2VerticalBetween(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, d, m1, m2, b1, b2, verticalBetween);
+	(c != uncalibrated) -> state2HorizontalBetween(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, d, m1, m2, b1, b2, horizontalBetween);
+	state2AboveStandardHeight(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, d, m1, m2, b1, b2, aboveStandardHeight);
+	state2UnderStandardHeight(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, d, m1, m2, b1, b2, belowStandardHeight);
+	(c == calibratedInBetween) -> state2StandardHeight(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, d, m1, m2, b1, b2, standardHeight);
+	(c == calibratedLowermost) -> state2StandardHeight(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, d, m1, m2, b1, b2, lowermost);
+	(c == calibratedUppermost) -> state2StandardHeight(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, d, m1, m2, b1, b2, uppermost);
+	state2EmergencyMode(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(
+			emergencyMode, c, undocked, verticalMotorOff, horizontalMotorOff, on, off, p);
+	state2NormalMode(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(
+			normalMode, c, undocked, verticalMotorOff, horizontalMotorOff, on, on, p);
+	state2VerticalBrakeOff(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, d, m1, m2, off, b2, p);
+	state2HorizontalBrakeOff(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, d, m1, m2, b1, off, p);
+	state2VerticalBrakeOn(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, d, m1, m2, on, b2, p);
+	state2HorizontalBrakeOn(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, d, m1, m2, b1, off, p);
+	state2MotorUp(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, d, movingUp, m2, b1, b2, p);
+	state2MotorDown(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, d, movingDown, m2, b1, b2, p);
+	state2MotorLeft(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, d, m1, movingLeft, b1, b2, p);
+	state2MotorRight(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, d, m1, movingRight, b1, b2, p);
+	state2HorizontalMotorOff(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, d, m1, horizontalMotorOff, b1, b2, p);
+	state2VerticalMotorOff(state(m, c, d, m1, m2, b1, b2, p)) =
+		state(m, c, d, verticalMotorOff, m2, b1, b2, p);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Proc implementation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+act
+	r_tap, r_press, r_release: ButtonLabel;
+	r_uppermostReached, r_lowermostReached;
+	r_standardHeightReached, r_standardHeightPassed;
+	r_rightmostReached, r_leftmostReached;
+	r_dock, s_undock;
+	s_motorUp, s_motorDown, s_verticalMotorOff;
+	s_motorLeft, s_motorRight, s_horizontalMotorOff;
+	s_applyVerticalBrake, s_releaseVerticalBrake;
+	s_applyHorizontalBrake, s_releaseHorizontalBrake;
+	setStandardHeight, resetStandardHeight;
+	emergencyMode, normalMode;
+
+proc
+	Processor(s : ProcessorState) =
+	    isNormalMode(s) -> NormalMode(s)
+	  + isEmergencyMode(s) -> EmergencyMode(s)
+	;
+
+	NormalMode(s : ProcessorState) =
+		TapOrPress(resume) . Processor(s)
+
+	  + TapOrPress(undock) . ProcUndock(s)
+
+	  + TapOrPress(reset) . ProcCalibrate(s)
+
+	  + TapOrPress(stop) . ProcEmergencyMode(s)
+
+	  + isDockable(s) -> r_dock . Processor(state2Docked(s))
+
+	  + isUndocked(s) -> ProcMovingUndocked(s)
+
+	  + isDocked(s) -> ProcMovingDocked(s)
+	;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Moving Docked
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+	ProcMovingDocked(s : ProcessorState) =
+		isLowermost(s) -> TapOrPress(down) . Processor(s)
+	  + (isUppermost(s) && !isStandardHeight(s)) -> TapOrPress(up) . Processor(s)
+
+	  + isBelowStandardHeight(s)->
+		  ( r_tap(up) . ProcVerticalMovingTapDocked(s, movingUp)
+		  + r_press(up) . ProcVerticalMovingPressDocked(s, movingUp)
+		  )
+
+	  + isAboveLowermost(s) ->
+	      ( r_tap(down) . ProcVerticalMovingTapDocked(s, movingDown)
+		  + r_press(down) . ProcVerticalMovingPressDocked(s, movingDown)
+		  )
+
+	  + isStandardHeight(s)  ->
+	  	  TapOrPress(up) . ProcHorizontalMovingTap(s, movingLeft)
+
+	  + isLeftmost(s) ->
+	      ( TapOrPress(up) . Processor(s)
+		  + TapOrPress(down) . ProcHorizontalMovingTap(s, movingRight)
+		  )
+
+	  +	isMovingUp(s) -> ProcReleaseUpDocked(s)
+
+	  +	isMovingDown(s) -> ProcReleaseDownDocked(s)
+	;
+
+	ProcHorizontalMovingTap(s : ProcessorState, request : HorizontalMotorState) =
+		(request == movingLeft) ->
+		  ( s_releaseHorizontalBrake
+		  . s_motorLeft
+		  . ProcMovingLeftTap(s)
+		  )
+	  +	(request == movingRight) ->
+		  ( s_releaseHorizontalBrake
+		  . s_motorRight
+		  . ProcMovingRightTap(s)
+		  )
+	;
+
+	ProcMovingLeftTap(s : ProcessorState) =
+		TapOrPress(stop)
+		. ProcEmergencyMode(state2MotorLeft(state2HorizontalBrakeOff(state2HorizontalBetween(s))))
+	  +	r_leftmostReached . s_horizontalMotorOff . s_applyHorizontalBrake
+	  	. Processor(state2Leftmost(s))
+	;
+
+	ProcMovingRightTap(s : ProcessorState) =
+		TapOrPress(stop)
+		. ProcEmergencyMode(state2MotorRight(state2HorizontalBrakeOff(state2HorizontalBetween(s))))
+	  +	r_rightmostReached . r_standardHeightReached . s_horizontalMotorOff . s_applyHorizontalBrake
+	  	. Processor(state2StandardHeight(s))
+	;
+
+	ProcVerticalMovingTapDocked(s : ProcessorState, request : VerticalMotorState) =
+		((request == movingUp) && isAboveStandardHeight(s)) -> Processor(s)
+	  +	((request == movingUp) && isBelowStandardHeight(s)) ->
+		  ( s_releaseVerticalBrake
+		  . s_motorUp
+		  . ProcMovingUpTapDocked(s)
+		  )
+	  +	(request == movingDown) ->
+	  	  ( s_releaseVerticalBrake
+		  . s_motorDown
+		  . ProcMovingDownTapDocked(s)
+		  )
+	;
+
+	ProcVerticalMovingPressDocked(s : ProcessorState, request : VerticalMotorState) =
+		(request == movingUp) ->
+		  ( s_releaseVerticalBrake
+		  . s_motorUp
+		  . Processor(state2MotorUp(state2VerticalBrakeOff(s)))
+		  )
+	  +	(request == movingDown) ->
+	      ( s_releaseVerticalBrake
+		  . s_motorDown
+		  . Processor(state2MotorDown(state2VerticalBrakeOff(s)))
+		  )
+	;
+
+	ProcMovingUpTapDocked(s : ProcessorState) =
+	    isUncalibrated(s) ->
+		  (	r_uppermostReached . s_verticalMotorOff . s_applyVerticalBrake . Processor(state2Uppermost(s))
+	      + s_verticalMotorOff . s_applyVerticalBrake . Processor(state2VerticalBetween(s))
+		  )
+	  + isCalibrated(s) ->
+		  ( standardHeightonBoundManager(s) . s_verticalMotorOff . s_applyVerticalBrake . Processor(state2StandardHeight(s))
+	      + s_verticalMotorOff . s_applyVerticalBrake . Processor(state2UnderStandardHeight(s))
+		  )
+	;
+
+	ProcMovingDownTapDocked(s : ProcessorState) =
+	    isUncalibrated(s) ->
+		  (	r_lowermostReached . s_verticalMotorOff . s_applyVerticalBrake . Processor(state2Lowermost(s))
+	      + s_verticalMotorOff . s_applyVerticalBrake . Processor(state2VerticalBetween(s))
+		  )
+	  + (isCalibrated(s) && (isBelowStandardHeight(s) || isStandardHeight(s))) ->
+		  ( r_lowermostReached . s_verticalMotorOff . s_applyVerticalBrake . Processor(state2Lowermost(s))
+	      + s_verticalMotorOff . s_applyVerticalBrake . Processor(state2UnderStandardHeight(s))
+		  )
+	  + (isCalibrated(s) && isAboveStandardHeight(s)) ->
+	      ( standardHeightonBoundManager(s) . s_verticalMotorOff . s_applyVerticalBrake . Processor(state2StandardHeight(s))
+		  + s_verticalMotorOff . s_applyVerticalBrake . Processor(state2AboveStandardHeight(s))
+		  )
+	;
+
+	ProcReleaseUpDocked(s : ProcessorState) =
+		isCalibrated(s) ->
+		  ( r_release(up) . s_verticalMotorOff . s_applyVerticalBrake
+		  		. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2UnderStandardHeight(s))))
+		  + standardHeightonBoundManager(s) . s_verticalMotorOff . s_applyVerticalBrake . r_release(up)
+		  		. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2StandardHeight(s))))
+		  )
+	  + isUncalibrated(s) ->
+	  	  ( r_release(up) . s_verticalMotorOff . s_applyVerticalBrake
+		  		. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2VerticalBetween(s))))
+		  + r_uppermostReached . s_verticalMotorOff . s_applyVerticalBrake . r_release(up)
+		  		. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2Uppermost(s))))
+		  )
+	;
+
+	ProcReleaseDownDocked(s : ProcessorState) =
+	    (isCalibrated(s) && (isBelowStandardHeight(s) || isStandardHeight(s))) ->
+		  (	r_lowermostReached . s_verticalMotorOff . s_applyVerticalBrake . r_release(down)
+				. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2Lowermost(s))))
+		  + r_release(down) . s_verticalMotorOff . s_applyVerticalBrake
+		  		. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2UnderStandardHeight(s))))
+		  )
+	  + (isCalibrated(s) && isAboveStandardHeight(s) && isCalibratedLowermost(s)) ->
+	      ( r_release(down) . s_verticalMotorOff . s_applyVerticalBrake
+		  		. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2AboveStandardHeight(s))))
+		  + standardHeightonBoundManager(s) . s_verticalMotorOff . s_applyVerticalBrake .r_release(down)
+		  		. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2StandardHeight(s))))
+		  )
+	  + (isCalibrated(s) && isAboveStandardHeight(s) && isCalibratedInBetween(s)) ->
+	      ( r_release(down) . s_verticalMotorOff . s_applyVerticalBrake
+		  		. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2AboveStandardHeight(s))))
+		  + r_standardHeightReached . r_release(down) . s_verticalMotorOff . s_applyVerticalBrake
+		  		. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2StandardHeight(s))))
+		  + r_standardHeightPassed
+		  		. Processor(state2UnderStandardHeight(s))
+		  )
+	  + isUncalibrated(s) ->
+		  (	r_lowermostReached . s_verticalMotorOff . s_applyVerticalBrake . r_release(down)
+				. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2Lowermost(s))))
+	  	  + r_release(down) . s_verticalMotorOff . s_applyVerticalBrake
+		  		. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2VerticalBetween(s))))
+		  )
+
+	;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Moving undocked
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+	ProcMovingUndocked(s : ProcessorState) =
+		isLowermost(s) -> TapOrPress(down) . Processor(s)
+	  + isUppermost(s) -> TapOrPress(up) . Processor(s)
+
+
+		% da riaggiungere le righe commentate
+	  + isUnderUppermost(s) ->
+			( r_tap(up)    . ProcVerticalMovingTapUndocked  (s, movingUp)
+			+ r_press(up)  . ProcVerticalMovingPressUndocked(s, movingUp)
+			)
+	  + isAboveLowermost(s) ->
+			( r_tap(down)    . ProcVerticalMovingTapUndocked  (s, movingDown)
+			+ r_press(down)  . ProcVerticalMovingPressUndocked(s, movingDown)
+			)
+
+	  + isMovingUp(s) -> ProcVerticalMovingReleaseUpUndocked(s)
+
+	  + isMovingDown(s) -> ProcVerticalMovingReleaseDownUndocked(s)
+	;
+
+	ProcVerticalMovingTapUndocked(s : ProcessorState, request : VerticalMotorState) =
+		((request == movingUp) && !(isStandardHeight(s) && isCalibratedUppermost(s))) ->
+		  ( s_releaseVerticalBrake
+		  .	s_motorUp
+		  . ProcVerticalMovingUpTapUndocked(s)
+		  )
+	  + ((request == movingUp) && isStandardHeight(s) && isCalibratedUppermost(s)) ->
+		    Processor(s)
+
+	  + ((request == movingDown) && !(isStandardHeight(s) && isCalibratedLowermost(s))) ->
+	      ( s_releaseVerticalBrake
+		  .	s_motorDown
+		  . ProcVerticalMovingDownTapUndocked(s)
+		  )
+	  + ((request == movingDown) && isStandardHeight(s) && isCalibratedLowermost(s)) ->
+		    Processor(s)
+	;
+
+	ProcVerticalMovingUpTapUndocked(s : ProcessorState) =
+		isUncalibrated(s) ->
+		  ( r_uppermostReached . s_verticalMotorOff . s_applyVerticalBrake . Processor(state2Uppermost(s))
+		  + s_verticalMotorOff . s_applyVerticalBrake . Processor(state2VerticalBetween(s))
+		  )
+	  + (isCalibrated(s) && (isStandardHeight(s) || isAboveStandardHeight(s))) ->
+	  	  ( r_uppermostReached . s_verticalMotorOff . s_applyVerticalBrake . Processor(state2Uppermost(s))
+		  + s_verticalMotorOff . s_applyVerticalBrake . Processor(state2AboveStandardHeight(s))
+		  )
+	  + (isCalibrated(s) && isBelowStandardHeight(s)) ->
+		  ( s_verticalMotorOff . s_applyVerticalBrake . Processor(state2UnderStandardHeight(s))
+		  + standardHeightonBoundManager(s) .  s_verticalMotorOff . s_applyVerticalBrake . Processor(state2StandardHeight(s))
+		  )
+	;
+
+	ProcVerticalMovingDownTapUndocked(s : ProcessorState) =
+		isUncalibrated(s) ->
+		  ( r_lowermostReached . s_verticalMotorOff . s_applyVerticalBrake . Processor(state2Lowermost(s))
+		  + s_verticalMotorOff . s_applyVerticalBrake . Processor(state2VerticalBetween(s))
+		  )
+	  + (isCalibrated(s) && (isBelowStandardHeight(s) || isStandardHeight(s))) ->
+		  ( r_lowermostReached . s_verticalMotorOff . s_applyVerticalBrake . Processor(state2Lowermost(s))
+		  + s_verticalMotorOff . s_applyVerticalBrake . Processor(state2UnderStandardHeight(s))
+		  )
+	  + (isCalibrated(s) && isAboveStandardHeight(s)) ->
+		  ( standardHeightonBoundManager(s) . s_verticalMotorOff . s_applyVerticalBrake . Processor(state2StandardHeight(s))
+		  + s_verticalMotorOff . s_applyVerticalBrake . Processor(state2AboveStandardHeight(s))
+		  )
+	;
+
+	ProcVerticalMovingPressUndocked(s : ProcessorState, request : VerticalMotorState) =
+		((request == movingUp) && isPressUpUndockedAllowed(s)) ->
+		  ( s_releaseVerticalBrake
+		  .	s_motorUp
+		  . Processor(state2MotorUp(state2VerticalBrakeOff(s)))
+		  )
+	  + ((request == movingUp) && !isPressUpUndockedAllowed(s)) ->
+		    r_release(up)
+		  .	Processor(s)
+
+	  + ((request == movingDown) && isPressDownUndockedAllowed(s)) ->
+	      ( s_releaseVerticalBrake
+		  .	s_motorDown
+		  . Processor(state2MotorDown(state2VerticalBrakeOff(s)))
+		  )
+	  + ((request == movingDown) && !isPressDownUndockedAllowed(s)) ->
+		    r_release(down)
+		  . Processor(s)
+	;
+
+	ProcVerticalMovingReleaseUpUndocked(s : ProcessorState) =
+		isUncalibrated(s) ->
+		  ( r_uppermostReached . s_verticalMotorOff . s_applyVerticalBrake . r_release(up)
+		  	. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2Uppermost(s))))
+		  + r_release(up) . s_verticalMotorOff . s_applyVerticalBrake
+		    . Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2VerticalBetween(s))))
+		  )
+
+	  +	(isCalibratedInBetween(s) && (isBelowStandardHeight(s) || isLowermost(s))) ->
+		  ( r_standardHeightPassed . Processor(state2StandardHeight(s)) % continues upwards, reaching the standard height but not stopping there
+		  + r_standardHeightReached . r_release(up) . s_verticalMotorOff . s_applyVerticalBrake
+		  	. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2StandardHeight(s))))
+		  + r_release(up) . s_verticalMotorOff . s_applyVerticalBrake
+		  	. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2UnderStandardHeight(s))))
+		  )
+	  + (isCalibratedInBetween(s) && (isStandardHeight(s) || isAboveStandardHeight(s))) ->
+	  	  ( r_release(up) . s_verticalMotorOff . s_applyVerticalBrake
+		  	. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2AboveStandardHeight(s))))
+		  + r_uppermostReached . s_verticalMotorOff . s_applyVerticalBrake . r_release(up)
+		  	. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2Uppermost(s))))
+		  )
+	  + (isCalibratedUppermost(s) && (isBelowStandardHeight(s) || isLowermost(s))) ->
+	      ( r_release(up) . s_verticalMotorOff . s_applyVerticalBrake
+		  	. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2UnderStandardHeight(s))))
+		  + standardHeightonBoundManager(s) . s_verticalMotorOff . s_applyVerticalBrake . r_release(up)
+		  	. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2Uppermost(s))))
+		  )
+	  + (isCalibratedLowermost(s) && (isAboveStandardHeight(s) || isLowermost(s))) ->
+	      ( r_release(up) . s_verticalMotorOff . s_applyVerticalBrake
+		  	. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2AboveStandardHeight(s))))
+		  + r_uppermostReached . s_verticalMotorOff . s_applyVerticalBrake . r_release(up)
+		  	. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2Uppermost(s))))
+		  )
+	;
+
+	ProcVerticalMovingReleaseDownUndocked(s : ProcessorState) =
+		isUncalibrated(s) ->
+		  ( r_lowermostReached . s_verticalMotorOff . s_applyVerticalBrake . r_release(down)
+		  	. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2Lowermost(s))))
+		  + r_release(down) . s_verticalMotorOff . s_applyVerticalBrake
+		    . Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2VerticalBetween(s))))
+		  )
+
+	  +	(isCalibratedInBetween(s) && (isUppermost(s) || isAboveStandardHeight(s))) ->
+		  ( r_standardHeightPassed . Processor(state2StandardHeight(s)) % continues downwards, reaching the standard height but not stopping there
+		  + r_standardHeightReached . r_release(down) . s_verticalMotorOff . s_applyVerticalBrake
+		  	. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2StandardHeight(s))))
+		  + r_release(down) . s_verticalMotorOff . s_applyVerticalBrake
+		  	. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2AboveStandardHeight(s))))
+		  )
+	  +	(isCalibratedInBetween(s) && (isStandardHeight(s) || isBelowStandardHeight(s))) ->
+		  ( r_lowermostReached . s_verticalMotorOff . s_applyVerticalBrake . r_release(down)
+		  	. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2Lowermost(s))))
+		  + r_release(down) . s_verticalMotorOff . s_applyVerticalBrake
+		  	. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2UnderStandardHeight(s))))
+		  )
+	  + (isCalibratedUppermost(s) && (isUppermost(s) || isBelowStandardHeight(s))) ->
+	      ( r_release(down) . s_verticalMotorOff . s_applyVerticalBrake
+		  	. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2UnderStandardHeight(s))))
+		  + r_lowermostReached . s_verticalMotorOff . s_applyVerticalBrake . r_release(down)
+		  	. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2Lowermost(s))))
+		  )
+	  + (isCalibratedLowermost(s) && (isUppermost(s) || isAboveStandardHeight(s))) ->
+	      ( r_release(down) . s_verticalMotorOff . s_applyVerticalBrake
+		  	. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2AboveStandardHeight(s))))
+		  + standardHeightonBoundManager(s) . r_release(down) . s_verticalMotorOff . s_applyVerticalBrake
+		  	. Processor(state2VerticalMotorOff(state2VerticalBrakeOn(state2Lowermost(s))))
+		  )
+	;
+
+	standardHeightonBoundManager(s : ProcessorState) =
+		isCalibratedUppermost(s) -> r_standardHeightReached . r_uppermostReached
+	  + isCalibratedLowermost(s) -> r_standardHeightReached . r_lowermostReached
+	  + isCalibratedInBetween(s) -> r_standardHeightReached
+	;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Proc for other console buttons
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+	ProcEmergencyMode(s : ProcessorState) =
+	    isUndocked(s) ->
+	  		Processor(s)
+	  +	(isDocked(s)) ->
+			emergencyMode
+		  . ProcEmergencyModeRightmostCheck(s)
+	;
+
+	ProcEmergencyModeRightmostCheck(s : ProcessorState) =
+		isRightmost(s) ->
+		    s_undock
+		  . Processor(state2EmergencyMode(s))
+	  +	isHorizontalBetween(s) ->
+	  		s_horizontalMotorOff
+		  . r_rightmostReached
+		  . s_applyHorizontalBrake
+		  . s_undock
+		  . Processor(state2HorizontalMotorOff(state2HorizontalBrakeOn(state2EmergencyMode(state2StandardHeight(s)))))
+	  + isLeftmost(s) ->
+		    s_releaseHorizontalBrake
+		  . r_rightmostReached
+		  . s_applyHorizontalBrake
+		  . s_undock
+		  . Processor(state2EmergencyMode(state2StandardHeight(s)))
+ 	;
+
+	ProcUndock(s : ProcessorState) =
+		(isDocked(s) && isRightmost(s)) ->
+			s_undock . Processor(state2Undocked(s))
+	  + (isUndocked(s) || !isRightmost(s)) ->
+	  		Processor(s)
+	;
+
+	ProcCalibrate(s : ProcessorState) =
+		(isDocked(s) && isRightmost(s)) ->
+			setStandardHeight . r_standardHeightReached . Processor(state2Calibrated(s))
+	  + (isDocked(s) && !isRightmost(s)) ->
+	  		setStandardHeight . Processor(state2Calibrated(s))
+	  + (isUndocked(s) && isCalibrated(s)) ->
+	 		resetStandardHeight . Processor(state2Uncalibrated(s))
+	  + (isUndocked(s) && isUncalibrated(s)) ->
+	        Processor(s)
+	;
+
+	EmergencyMode(s : ProcessorState) =
+	  	( TapOrPress(up)
+	  	+ TapOrPress(down)
+	  	+ TapOrPress(stop)
+	  	+ TapOrPress(reset)
+	  	+ TapOrPress(undock)
+	  	) . Processor(s)
+
+	  + TapOrPress(resume) . ReturnToNormalMode(s)
+	;
+
+	ReturnToNormalMode(s : ProcessorState) =
+		normalMode
+	%  .	s_applyHorizontalBrake % always be applied here
+	%  . s_applyVerticalBrake
+	  . Processor(state2NormalMode(s))
+	;
+
+	TapOrPress(b : ButtonLabel) =
+		r_tap(b) + r_press(b) . r_release(b)
+	;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% communication actions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+act
+	tap, press, release: ButtonLabel;
+	uppermostReached, lowermostReached;
+	standardHeightReached, standardHeightPassed;
+	rightmostReached, leftmostReached;
+	dock, undock;
+	motorUp, motorDown, verticalMotorOff;
+	motorLeft, motorRight, horizontalMotorOff;
+	applyVerticalBrake, releaseVerticalBrake;
+	applyHorizontalBrake, releaseHorizontalBrake;
+
+map initialProcessorState : ProcessorState;
+eqn initialProcessorState = state(
+		normalMode,
+		uncalibrated,
+		undocked,
+		verticalMotorOff,
+		horizontalMotorOff,
+		on,
+		on,
+		lowermost
+	);
+
+proc
+	ProcContainer(s : ProcessorState) =
+		hide({
+			tap, press, release,
+			uppermostReached, lowermostReached,
+			standardHeightReached, standardHeightPassed,
+			rightmostReached, leftmostReached,
+			dock, undock,
+			motorUp, motorDown, verticalMotorOff,
+			motorLeft, motorRight, horizontalMotorOff,
+			applyVerticalBrake, releaseVerticalBrake,
+			applyHorizontalBrake, releaseHorizontalBrake
+		},
+		r_lowermostReached
+		. Processor(s));
+
+	SensorsContainer =
+		hide({
+			tap, press, release,
+			uppermostReached, lowermostReached,
+			standardHeightReached, standardHeightPassed,
+			rightmostReached, leftmostReached,
+			dock, undock,
+			motorUp, motorDown, verticalMotorOff,
+			motorLeft, motorRight, horizontalMotorOff,
+			applyVerticalBrake, releaseVerticalBrake,
+			applyHorizontalBrake, releaseHorizontalBrake
+		},
+		Sensors);
+
+	ConsoleContainer =
+		hide({
+			tap, press, release,
+			uppermostReached, lowermostReached,
+			standardHeightReached, standardHeightPassed,
+			rightmostReached, leftmostReached,
+			dock, undock,
+			motorUp, motorDown, verticalMotorOff,
+			motorLeft, motorRight, horizontalMotorOff,
+			applyVerticalBrake, releaseVerticalBrake,
+			applyHorizontalBrake, releaseHorizontalBrake
+		},
+		Console);
+
+	OutputContainer(s : ProcessorState) =
+		hide({
+			tap, press, release,
+			uppermostReached, lowermostReached,
+			standardHeightReached, standardHeightPassed,
+			rightmostReached, leftmostReached,
+			dock, undock,
+			motorUp, motorDown, verticalMotorOff,
+			motorLeft, motorRight, horizontalMotorOff,
+			applyVerticalBrake, releaseVerticalBrake,
+			applyHorizontalBrake, releaseHorizontalBrake,
+			setStandardHeight, resetStandardHeight,
+			emergencyMode, normalMode},
+		Output(s));
+
+init
+	allow({
+		tap, press, release,
+		uppermostReached, lowermostReached,
+		standardHeightReached, standardHeightPassed,
+		rightmostReached, leftmostReached,
+		dock, undock,
+		motorUp, motorDown, verticalMotorOff,
+		motorLeft, motorRight, horizontalMotorOff,
+		applyVerticalBrake, releaseVerticalBrake,
+		applyHorizontalBrake, releaseHorizontalBrake,
+        setStandardHeight, resetStandardHeight,
+		emergencyMode, normalMode
+	}, comm({
+			s_tap|r_tap -> tap,
+			s_press|r_press -> press,
+			s_release|r_release -> release,
+			s_uppermostReached|r_uppermostReached -> uppermostReached,
+			s_lowermostReached|r_lowermostReached -> lowermostReached,
+			s_standardHeightReached|r_standardHeightReached -> standardHeightReached,
+			s_standardHeightPassed|r_standardHeightPassed -> standardHeightPassed,
+			s_rightmostReached|r_rightmostReached -> rightmostReached,
+			s_leftmostReached|r_leftmostReached -> leftmostReached,
+			s_dock|r_dock -> dock,
+			r_undock|s_undock -> undock,
+			s_motorUp|r_motorUp -> motorUp,
+			s_motorDown|r_motorDown -> motorDown,
+			s_verticalMotorOff| r_verticalMotorOff -> verticalMotorOff,
+			s_motorLeft|r_motorLeft -> motorLeft,
+			s_motorRight|r_motorRight -> motorRight,
+			s_horizontalMotorOff|r_horizontalMotorOff -> horizontalMotorOff,
+			s_applyVerticalBrake|r_applyVerticalBrake -> applyVerticalBrake,
+			s_releaseVerticalBrake|r_releaseVerticalBrake -> releaseVerticalBrake,
+			s_applyHorizontalBrake|r_applyHorizontalBrake -> applyHorizontalBrake,
+			s_releaseHorizontalBrake|r_releaseHorizontalBrake -> releaseHorizontalBrake
+			},
+			ProcContainer(initialProcessorState) ||
+			SensorsContainer ||
+			ConsoleContainer ||
+			OutputContainer(initialProcessorState)
+		)
+	);

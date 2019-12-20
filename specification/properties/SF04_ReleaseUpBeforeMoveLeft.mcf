@@ -1,0 +1,6 @@
+% SF04
+% first docked and then standard height reached
+[true* . dock . !undock* . standardHeightReached . !(undock || motorDown || motorUp)* . press(up) . !release(up)* . motorLeft] false 
+&&
+% first standard height reached and then docked
+[true* . standardHeightReached . !(resetStandardHeight || motorUp || motorDown)* . dock . !(undock || motorUp || motorDown)* . press(up) . !(release(up))* . motorLeft] false

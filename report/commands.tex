@@ -1,0 +1,77 @@
+% Actions names
+
+\newcommand{\pressStop}{\texttt{pressStop}}
+\newcommand{\releaseStop}{\texttt{releaseStop}}
+\newcommand{\tapStop}{\texttt{tapStop}}
+
+\newcommand{\tapResume}{\texttt{tapResume}}
+\newcommand{\releaseResume}{\texttt{releaseResume}}
+\newcommand{\pressResume}{\texttt{pressResume}}
+
+\newcommand{\pressUndock}{\texttt{pressUndock}}
+\newcommand{\releaseUndock}{\texttt{releaseUndock}}
+\newcommand{\tapUndock}{\texttt{tapUndock}}
+
+\newcommand{\pressUp}{\texttt{pressUp}}
+\newcommand{\releaseUp}{\texttt{releaseUp}}
+\newcommand{\tapUp}{\texttt{tapUp}}
+
+\newcommand{\tapDown}{\texttt{tapDown}}
+\newcommand{\releaseDown}{\texttt{releaseDown}}
+\newcommand{\pressDown}{\texttt{pressDown}}
+
+\newcommand{\pressReset}{\texttt{pressReset}}
+\newcommand{\releaseReset}{\texttt{releaseReset}}
+\newcommand{\tapReset}{\texttt{tapReset}}
+
+\newcommand{\motorLeft              }{\texttt{motorLeft}}
+\newcommand{\motorRight             }{\texttt{motorRight}}
+\newcommand{\motorUp                }{\texttt{motorUp}}
+\newcommand{\motorDown              }{\texttt{motorDown}}
+\newcommand{\horizontalMotorOff     }{\texttt{horizontalMotorOff}}
+\newcommand{\verticalMotorOff       }{\texttt{verticalMotorOff}}
+\newcommand{\applyHorizontalBrake   }{\texttt{applyHorizontalBrake}}
+\newcommand{\applyVerticalBrake     }{\texttt{applyVerticalBrake}}
+\newcommand{\releaseHorizontalBrake }{\texttt{releaseHorizontalBrake}}
+\newcommand{\releaseVerticalBrake   }{\texttt{releaseVerticalBrake}}
+
+\newcommand{\dock}{\texttt{dock}}
+\newcommand{\undock}{\texttt{undock}}
+
+\newcommand{\resetStandardHeight}{\texttt{resetStandardHeight}}
+\newcommand{\setStandardHeight}{\texttt{setStandardHeight}}
+
+\newcommand{\leftmostReached}{\texttt{leftmostReached}}
+\newcommand{\rightmostReached}{\texttt{rightmostReached}}
+\newcommand{\uppermostReached}{\texttt{uppermostReached}}
+\newcommand{\lowermostReached}{\texttt{lowermostReached}}
+\newcommand{\standardHeightReached}{\texttt{standardHeightReached}}
+\newcommand{\standardHeightPassed}{\texttt{standardHeightPassed}}
+
+\newcommand{\emergencyMode}{\texttt{emergencyMode}}
+\newcommand{\normalMode}{\texttt{normalMode}}
+
+% Requirements - actions interactions
+
+% motorized movement
+\newcommand{\motorizedMovement}{\motorLeft, \motorRight, \motorUp\ or \motorDown}
+\newcommand{\horizontalMotorizedMovement}{\motorLeft\ or \motorRight}
+\newcommand{\verticalMotorizedMovement}{\motorUp\ or \motorDown}
+
+% Emergency mode
+\newcommand{\inEmergencyMode}{\emergencyMode\ not followed by \normalMode}
+
+% bed positions
+% \newcommand{\notRightmost}{no \rightmostReached\ action occured or \rightmostReached\ followed by \motorLeft\ occurred not followed by \rightmostReached}
+\newcommand{\notRightmost}{\motorLeft\ not followed by \rightmostReached}
+\newcommand{\notLeftmost}{}
+\newcommand{\notUppermost}{}
+\newcommand{\notLowerMost}{}
+\newcommand{\overStandardHeight}{}
+\newcommand{\underStandardHeight}{}
+
+\newcommand{\isDocked}{\dock\ not followed by \undock}
+\newcommand{\isUndocked}{no \dock\ action occurred or \dock\ followed by \undock\ not followed by \dock}
+
+\newcommand{\isCalibrated}{\setStandardHeight\ not followed by \resetStandardHeight}
+\newcommand{\isUncalibrated}{no \setStandardHeight\ occurred or \setStandardHeight\ followed by \resetStandardHeight\ not followed by \setStandardHeight}

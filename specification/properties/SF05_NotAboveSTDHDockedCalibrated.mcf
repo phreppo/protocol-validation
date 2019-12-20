@@ -1,0 +1,6 @@
+% SF05
+% First docked and then standardHeightReached not followed by movement
+[true* . dock . !undock* . standardHeightReached . !(motorDown || undock)* . motorUp]false 
+&&
+% First standardHeightReached and then docked not followed by movement
+[true* . standardHeightReached . !(resetStandardHeight || motorUp || motorDown)* . dock . !(motorDown || undock)* . motorUp ]false

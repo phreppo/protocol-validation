@@ -1,0 +1,2 @@
+% LV06
+([true* . setStandardHeight . !(resetStandardHeight || emergencyMode)* . undock . !(dock || resetStandardHeight)* . (tap(reset) || press(reset) . release(reset))] mu X . [!resetStandardHeight]X)

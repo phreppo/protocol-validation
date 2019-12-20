@@ -1,0 +1,18 @@
+% LV11
+% the uppermost has never been reached and the MPSP has never been docked
+([!(dock || uppermostReached)* . (press(up) || tap(up))] mu X . [!motorUp]X)
+&&
+% the MPSP has never been docked but the uppermost position has been reached
+([!dock* . uppermostReached . !(dock)* . motorDown . !(dock || uppermostReached)* . (press(up) || tap(up))] mu X . [!motorUp]X)
+&&
+% the MPSP has been docked but has never reached the uppermost position
+([!(uppermostReached || emergencyMode)* . undock . !(dock || uppermostReached)* . (press(up) || tap(up))] mu X . [!motorUp]X)
+&&
+% the MPSP has been docked and has reached the uppermost position after that
+([true* . undock . !dock* . uppermostReached . !(dock)* . motorDown . !(dock || uppermostReached)* . (press(up) || tap(up))] mu X . [!motorUp]X)
+&&
+% the uppermost has been reached before getting docked and moves down after undock action
+([true* . uppermostReached . !motorDown* . undock . !dock* . motorDown . !(dock || uppermostReached)* . (press(up) || tap(up))] mu X . [!motorUp]X)
+&&
+% the uppermost has been reached before getting docked and the bed movse down inside while docked
+([true* . uppermostReached . true* . motorDown . !(uppermostReached || emergencyMode)* . undock . !(dock || uppermostReached)* . (press(up) || tap(up))] mu X . [!motorUp]X)

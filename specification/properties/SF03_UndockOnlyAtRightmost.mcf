@@ -1,0 +1,2 @@
+% SF03
+[true* . motorLeft . !rightmostReached* . undock]false

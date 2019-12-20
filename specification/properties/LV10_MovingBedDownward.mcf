@@ -1,0 +1,2 @@
+% LV10
+([true* . motorUp . !(lowermostReached || motorLeft || emergencyMode)* . (tap(down) || press(down))] mu X . [!motorDown]X)

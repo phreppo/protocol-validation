@@ -1,0 +1,4 @@
+% LV07
+([true* . dock . !(undock || motorLeft)* . (tap(reset) || press(reset))] mu X . [!setStandardHeight]X)
+&&
+([true* . dock . !undock* . rightmostReached . !(undock || motorLeft)* . (tap(reset) || press(reset))] mu X . [!setStandardHeight]X)

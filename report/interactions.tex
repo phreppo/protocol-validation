@@ -1,0 +1,113 @@
+\section{Interactions List} \label{interactions}
+
+In this section we list all the  interactions of the control system with the outside world, grouped according to the behavior module.
+\subsection{Vertical and Horizontal motor}
+\begin{table}[H]
+    \center
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabularx}{\textwidth}{lX}
+        \hline
+        \textit{Name}           & \textit{Behavior}                                                      \\ \hline
+
+        \motorLeft              & The horizontal motor M2 is turned on and makes an inward movement  \\
+        \motorRight             & The horizontal motor M2 is turned on and makes an outward movement \\
+        \motorUp                & The vertical motor M1 is turned on and makes an upward movement    \\
+        \motorDown              & The vertical motor M1 is turned on and makes an downward movement  \\
+        \horizontalMotorOff     & The horizontal motor M2 is turned off                              \\
+        \verticalMotorOff       & The vertical motor M1 is turned off                                \\
+        \applyHorizontalBrake   & Apply the horizontal brake                           \\
+        \applyVerticalBrake     & Apply the vertical brake                             \\
+        \releaseHorizontalBrake & Release the horizontal brake                         \\
+        \releaseVerticalBrake   & Release the vertical brake                           \\
+        \hline
+    \end{tabularx}
+\end{table}
+
+\subsection{Bed position}
+\begin{table}[H]
+    \center
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabularx}{\textwidth}{lX}
+        \hline
+        \textit{Name} & \textit{Behavior}                                       \\ \hline
+            \leftmostReached        & Indicates that the bed is completely inside the scanner \\
+            \rightmostReached       & Indicates that the bed is at rightmost position \\
+            \uppermostReached       & Indicates that the bed is at the highest position \\
+            \lowermostReached       & Indicates that the bed is at the lowest position \\
+            \standardHeightReached  & Indicates that the bed is at the standard height, if possible \\
+            \standardHeightPassed   & Indicates that the bed has passed  the standard height without stopping \\
+        \hline
+    \end{tabularx}
+\end{table}
+
+\subsection{Calibration mode}
+\begin{table}[H]
+    \center
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabularx}{\textwidth}{lX}
+        \hline
+        \textit{Name} & \textit{Behavior}                                       \\ \hline
+            \resetStandardHeight   & Reset the standard height \\
+            \setStandardHeight      & Set a new standard height \\
+        \hline
+    \end{tabularx}
+\end{table}
+
+\subsection{Console buttons}
+\begin{table}[H]
+    \center
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabularx}{\textwidth}{lX}
+        \hline
+        \textit{Name}  & \textit{Behavior}                                       \\ \hline
+        \tapStop       & The Stop button is pressed and immediately released     \\
+        \pressStop     & The Stop button is pressed                              \\
+        \releaseStop   & The Stop button is released                             \\
+
+        \tapResume     & The Resume button is pressed and immediately released   \\
+        \pressResume   & The Resume button is pressed                            \\
+        \releaseResume & The Resume button is released                           \\
+
+        \tapUndock     & The Undock button is pressed and immediately released \\
+        \pressUndock   & The Undock button is pressed                          \\
+        \releaseUndock & The Undock button is released                         \\
+
+        \tapUp         & The Up button is pressed and immediately released     \\
+        \pressUp       & The Up button is pressed                              \\
+        \releaseUp     & The Up button is released                             \\
+
+        \tapDown       & The Down button is pressed and immediately released   \\
+        \pressDown     & The Down button is pressed                            \\
+        \releaseDown   & The Down button is released                           \\
+
+        \tapReset      & The Reset button is pressed and immediately released  \\
+        \pressReset    & The Reset button is pressed                           \\
+        \releaseReset  & The Reset button is released                          \\
+        \hline
+    \end{tabularx}
+\end{table}
+\subsection{Dock unit}
+\begin{table}[H]
+    \center
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabularx}{\textwidth}{lX}
+        \hline
+        \textit{Name} & \textit{Behavior}                                       \\ \hline
+            \dock   & Indicates that the platform has been docked with the scanner \\
+            \undock      & Unlock the platform from the docking unit \\
+        \hline
+    \end{tabularx}
+\end{table}
+
+\subsection{Emergency mode}
+\begin{table}[H]
+    \center
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabularx}{\textwidth}{lX}
+        \hline
+        \textit{Name} & \textit{Behavior}                                       \\ \hline
+            \emergencyMode   & Indicates that the system is in emergency mode                          \\
+            \normalMode      & Indicates that the system has returned to the normal operating mode \\
+        \hline
+    \end{tabularx}
+\end{table}

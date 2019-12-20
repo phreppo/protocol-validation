@@ -1,0 +1,2 @@
+% LV09
+[true* . motorLeft . !rightmostReached* . (tap(down) || press(down))] mu X . [!motorRight]X
